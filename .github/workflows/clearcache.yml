@@ -1,0 +1,41 @@
+name: Clear Cache on Imperva Incapsula WAF
+
+on:
+  push:
+    branches:
+      - main  # Adjust to your preferred branch
+
+jobs:
+  clear-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Dependencies
+        run: npm install request
+
+      - name: Clear Cache
+        env:
+          API_ID: ${{ secrets.IMP_API_ID }}
+          API_KEY: ${{ secrets.IMP_API_KEY }}
+          SITE_ID: "your_site_id"  # Replace with the actual site ID
+        run: |
+          API_URL="https://my.incapsula.com/api/prov/v1/sites/$SITE_ID/cache/clear"
+
+          # Make the API request to clear cache
+          response=$(curl -s -X POST -H "Content-Type: application/json" -H "x-API-ID: $API_ID" -H "x-API-Key: $API_KEY" "$API_URL")
+
+          # Check if cache clearing was successful
+          if [[ "$response" == *"Cache cleared successfully"* ]]; then
+            echo "Cache cleared successfully for site $SITE_ID"
+          else
+            echo "Failed to clear cache. Response: $response"
+            exit 1
+          fi
