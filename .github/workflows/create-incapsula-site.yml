@@ -1,0 +1,49 @@
+name: Create Imperva Incapsula Site
+on:
+  push:
+    branches:
+      - main  # Adjust to the branch you want to trigger the action on
+
+jobs:
+  create-site:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install dependencies
+        run: npm install jq
+
+      - name: Create Incapsula Site
+        env:
+          IMP_API_ID: ${{ secrets.IMP_API_ID }}
+          IMP_API_KEY: ${{ secrets.IMP_API_KEY }}
+        run: |
+          SITE_NAME="example.com"
+          ORIGIN_IP="123.456.789.0"
+
+          JSON_DATA=$(jq -n --arg SITE_NAME "$SITE_NAME" --arg ORIGIN_IP "$ORIGIN_IP" '{
+            site: {
+              domain: $SITE_NAME,
+              origin_ips: [$ORIGIN_IP]
+            }
+          }')
+
+          API_URL="https://my.incapsula.com/api/prov/v1/sites"
+
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "x-API-ID: $IMP_API_ID" -H "x-API-Key: $IMP_API_KEY" -d "$JSON_DATA" "$API_URL")
+
+          SITE_ID=$(echo "$RESPONSE" | jq -r '.site_id')
+
+          if [ -n "$SITE_ID" ]; then
+            echo "Site created successfully with ID: $SITE_ID"
+          else
+            echo "Failed to create site. Response: $RESPONSE"
+            exit 1
+          }
