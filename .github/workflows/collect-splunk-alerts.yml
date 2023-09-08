@@ -1,0 +1,47 @@
+name: Collect Splunk Cloud Alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"  # Schedule the workflow to run daily at midnight
+
+jobs:
+  collect-alerts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.x
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Collect Splunk Cloud Alerts
+        env:
+          SPLUNK_API_ENDPOINT: ${{ secrets.SPLUNK_API_ENDPOINT }}
+          SPLUNK_API_TOKEN: ${{ secrets.SPLUNK_API_TOKEN }}
+        run: |
+          # Calculate the time range for the last 24 hours in Splunk format
+          end_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          start_time=$(date -u -d '24 hours ago' +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Splunk REST API endpoint for alerts
+          api_url="${SPLUNK_API_ENDPOINT}/servicesNS/nobody/search/search/jobs/export"
+
+          # Splunk search query to retrieve alerts for the last 24 hours
+          search_query="search index=your_alerts_index earliest=\"${start_time}\" latest=\"${end_time}\" | table _time, sourcetype, host, message"
+
+          # Execute the Splunk search and save the output to a file
+          curl -s -k -u "${SPLUNK_API_TOKEN}:" -d "search=${search_query}" "$api_url" > splunk_alerts.txt
+
+          # Print the alerts to the workflow log
+          cat splunk_alerts.txt
+
+      - name: Save Alerts to Artifacts
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: splunk-alerts
+          path: splunk_alerts.txt
